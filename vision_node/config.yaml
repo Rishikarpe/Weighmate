@@ -14,7 +14,7 @@ roi:                            # Pixel coordinates of the scale display in the 
   h: 480                        # ← set with tools/calibrate_roi.py
 
 ssocr:
-  threshold: 15                 # luminance threshold 0-255 (tune on hardware)
+  threshold: 20                 # luminance threshold 0-255 (tune on hardware)
   min_digits: 3                 # "50.0" has 3 significant chars minimum
   max_digits: 4                 # "500.0" has 4 chars maximum
   frame_skip: 3                 # run SSOCR every N frames (3 → ~3 fps at 10 fps)
