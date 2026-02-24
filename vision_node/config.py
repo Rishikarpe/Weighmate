@@ -27,6 +27,7 @@ MQTT_TOPIC_SNAPSHOT      = f'factory/{SCALE_ID}/snapshot'
 MQTT_TOPIC_COMMAND       = f'factory/{SCALE_ID}/command'
 
 # ============== CAMERA ==============
+CAMERA_INDEX = 0       # USB camera device index (0 = first USB cam, 1 = second, etc.)
 FRAME_WIDTH  = 1280
 FRAME_HEIGHT = 720
 CAPTURE_FPS  = 10
