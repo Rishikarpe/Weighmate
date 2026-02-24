@@ -43,7 +43,7 @@ logger = logging.getLogger("main")
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-SNAPSHOT_DIR            = "/home/pi/weighmate/snapshots"
+SNAPSHOT_DIR            = "./snapshots"
 HEALTH_PUBLISH_INTERVAL = 10.0   # seconds between health publishes
 
 

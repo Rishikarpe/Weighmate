@@ -127,7 +127,7 @@ KALMAN_MEASUREMENT_NOISE = 1.5   # how noisy trilateration readings are
 
 # ============== WEIGHMATE (VISION NODE) ==============
 # IP of the Vision Node RPi (fixed above scale).  ← SET BEFORE DEPLOYMENT
-VISION_NODE_IP = '192.168.1.100'
+VISION_NODE_IP = '192.168.1.24'
 VISION_NODE_STREAM_URL = f'http://{VISION_NODE_IP}:8080/stream'
 
 # Scale MQTT topics (Vision Node publishes, Edge subscribes)

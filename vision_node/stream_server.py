@@ -123,9 +123,6 @@ class StreamServer:
             time.sleep(interval)
 
     def _run_flask(self) -> None:
-        # Silence Flask startup banner
-        import os
-        os.environ["WERKZEUG_RUN_MAIN"] = "true"
         self._app.run(
             host="0.0.0.0",
             port=STREAM_PORT,

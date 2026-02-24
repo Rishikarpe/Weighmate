@@ -104,6 +104,13 @@ class Camera:
             self._cap = cam
             self._use_picamera2 = True
             logger.info("Using Picamera2 (CSI camera)")
+        except RuntimeError as exc:
+            if "Pipeline handler in use" in str(exc):
+                logger.error("Camera is already in use by another process. Retrying in %ds...", RETRY_DELAY)
+                time.sleep(RETRY_DELAY)
+                self._try_open()
+            else:
+                raise
         except ImportError:
             logger.warning("Picamera2 not available. Falling back to OpenCV VideoCapture.")
             self._open_opencv()
