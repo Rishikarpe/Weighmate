@@ -1,0 +1,5 @@
+opencv-python-headless
+paho-mqtt
+flask
+# picamera2 — install via apt, not pip:
+#   sudo apt install python3-picamera2
