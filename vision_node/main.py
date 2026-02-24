@@ -43,7 +43,7 @@ logger = logging.getLogger("main")
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-SNAPSHOT_DIR            = "./snapshots"
+SNAPSHOT_DIR            = "0./snapshots"
 HEALTH_PUBLISH_INTERVAL = 10.0   # seconds between health publishes
 
 
