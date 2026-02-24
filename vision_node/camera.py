@@ -87,14 +87,21 @@ class Camera:
         cap.set(cv2.CAP_PROP_FRAME_WIDTH,  FRAME_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
         cap.set(cv2.CAP_PROP_FPS,          CAPTURE_FPS)
+        # Keep buffer at 1 so we always get the freshest frame even when
+        # SSOCR processing takes longer than the capture interval.
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         self._cap = cap
 
     def _read_frame(self) -> Optional[np.ndarray]:
         if self._cap is None:
             return None
-        try:
-            ok, frame = self._cap.read()
-            return frame if ok else None
-        except Exception as exc:
-            logger.warning("Frame capture error: %s", exc)
-            return None
+        # Grab the latest frame — retry once if the first read fails
+        # (can happen briefly when the driver buffer is being refilled).
+        for _ in range(2):
+            try:
+                ok, frame = self._cap.read()
+                if ok and frame is not None:
+                    return frame
+            except Exception as exc:
+                logger.warning("Frame capture error: %s", exc)
+        return None

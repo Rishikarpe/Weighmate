@@ -26,6 +26,7 @@ from typing import Optional
 import cv2
 
 from camera import Camera
+from config import SNAPSHOT_DIR, HEALTH_PUBLISH_INTERVAL
 from health_monitor import HealthMonitor
 from mqtt_client import VisionMQTTClient
 from session_manager import SessionManager, State
@@ -40,11 +41,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("main")
-
-# ─── Configuration ────────────────────────────────────────────────────────────
-
-SNAPSHOT_DIR            = "0./snapshots"
-HEALTH_PUBLISH_INTERVAL = 10.0   # seconds between health publishes
 
 
 def main() -> None:
