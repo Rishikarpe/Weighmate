@@ -24,8 +24,9 @@ from config import CAMERA_INDEX, FRAME_WIDTH, FRAME_HEIGHT, CAPTURE_FPS
 
 logger = logging.getLogger(__name__)
 
-# Seconds to wait between retries if camera fails to open.
-RETRY_DELAY = 3.0
+RETRY_DELAY  = 3.0           # seconds between open retries
+WARMUP_SECS  = 1.0           # seconds to let the camera stabilise after open
+WARMUP_READS = 10            # discard this many frames during warm-up
 
 
 class Camera:
@@ -72,36 +73,47 @@ class Camera:
 
     def frames(self) -> Iterator[Optional[np.ndarray]]:
         """
-        Yield BGR frames continuously.
+        Yield BGR frames at ~CAPTURE_FPS.
         Yields None on a bad read so the main loop stays alive.
+        Pacing ensures we never spin faster than the configured FPS,
+        even when reads fail.
         """
+        interval = 1.0 / CAPTURE_FPS
         while True:
+            t0 = time.monotonic()
             yield self._read_frame()
+            elapsed = time.monotonic() - t0
+            remaining = interval - elapsed
+            if remaining > 0:
+                time.sleep(remaining)
 
     # ─── Internal ─────────────────────────────────────────────────────────────
 
     def _try_open(self) -> None:
-        cap = cv2.VideoCapture(CAMERA_INDEX)
+        # Use the V4L2 backend explicitly on Linux for reliable UVC/USB cameras.
+        # Falls back gracefully on other platforms (Windows uses DSHOW, etc.).
+        backend = cv2.CAP_V4L2 if hasattr(cv2, 'CAP_V4L2') else cv2.CAP_ANY
+        cap = cv2.VideoCapture(CAMERA_INDEX, backend)
         if not cap.isOpened():
             raise RuntimeError(f"No USB camera found at index {CAMERA_INDEX}")
         cap.set(cv2.CAP_PROP_FRAME_WIDTH,  FRAME_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
         cap.set(cv2.CAP_PROP_FPS,          CAPTURE_FPS)
-        # Keep buffer at 1 so we always get the freshest frame even when
-        # SSOCR processing takes longer than the capture interval.
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        # NOTE: CAP_PROP_BUFFERSIZE is intentionally NOT set here —
+        # it breaks reads on many V4L2/UVC drivers.
         self._cap = cap
+        # Warm-up: give the sensor time to stabilise and drain initial frames.
+        logger.info("Camera warm-up (%ds)...", WARMUP_SECS)
+        time.sleep(WARMUP_SECS)
+        for _ in range(WARMUP_READS):
+            self._cap.grab()
 
     def _read_frame(self) -> Optional[np.ndarray]:
         if self._cap is None:
             return None
-        # Grab the latest frame — retry once if the first read fails
-        # (can happen briefly when the driver buffer is being refilled).
-        for _ in range(2):
-            try:
-                ok, frame = self._cap.read()
-                if ok and frame is not None:
-                    return frame
-            except Exception as exc:
-                logger.warning("Frame capture error: %s", exc)
-        return None
+        try:
+            ok, frame = self._cap.read()
+            return frame if ok else None
+        except Exception as exc:
+            logger.warning("Frame capture error: %s", exc)
+            return None
