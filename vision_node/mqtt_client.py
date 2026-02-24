@@ -46,7 +46,7 @@ class VisionMQTTClient:
     """
 
     def __init__(self, on_rescan: Optional[Callable[[], None]] = None) -> None:
-        self._on_rescan = on_rescan
+        self._on_rescan: Optional[Callable[[], None]] = on_rescan
         self._client = mqtt.Client(
             client_id=MQTT_CLIENT_ID,
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -62,6 +62,10 @@ class VisionMQTTClient:
         self._client.on_disconnect = self._on_disconnect
 
         self._client.reconnect_delay_set(min_delay=1, max_delay=30)
+
+    def set_rescan_callback(self, callback: Callable[[], None]) -> None:
+        """Wire the rescan callback after construction (avoids circular init)."""
+        self._on_rescan = callback
 
     # ─── Connection ───────────────────────────────────────────────────────────
 

@@ -1,69 +1,92 @@
 """
-config.py — Vision Node configuration
+config.py — Vision Node configuration loader.
 
-All tunable settings in one place.
+All parameters live in config.yaml.
+This module loads them and exposes module-level constants so every other
+module can do  `from config import X`  as before.
 """
 
+from __future__ import annotations
+
 import os
+from typing import Any
 
-# ============== MQTT BROKER (EMQX Cloud) ==============
-# Same broker as Edge — both nodes publish/subscribe here.
-MQTT_BROKER    = 'r7e2272f.ala.eu-central-1.emqxsl.com'
-MQTT_PORT      = 8883          # TLS/SSL
-MQTT_USERNAME  = 'edge_autonex'
-MQTT_PASSWORD  = 'autonex@2050'
-MQTT_CLIENT_ID = 'vision_node_scale1'
-MQTT_KEEPALIVE = 60
+import yaml
 
-# ============== SCALE IDENTITY ==============
-SCALE_ID = 'scale1'
+_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 
-# ============== MQTT TOPICS ==============
-MQTT_TOPIC_LIVE_WEIGHT   = f'factory/{SCALE_ID}/live_weight'
-MQTT_TOPIC_SESSION_STATE = f'factory/{SCALE_ID}/session_state'
-MQTT_TOPIC_STABLE_WEIGHT = f'factory/{SCALE_ID}/stable_weight'
-MQTT_TOPIC_HEALTH        = f'factory/{SCALE_ID}/health'
-MQTT_TOPIC_SNAPSHOT      = f'factory/{SCALE_ID}/snapshot'
-MQTT_TOPIC_COMMAND       = f'factory/{SCALE_ID}/command'
 
-# ============== CAMERA ==============
-CAMERA_INDEX = 2       # Logitech C270 HD Webcam at /dev/video2
-FRAME_WIDTH  = 1280
-FRAME_HEIGHT = 720
-CAPTURE_FPS  = 10
+def _load() -> dict[str, Any]:
+    with open(_CONFIG_PATH, encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
-# ============== STREAM SERVER ==============
-STREAM_PORT    = 8080
-STREAM_FPS     = 5
-STREAM_QUALITY = 70
 
-# ============== ROI (tune after physical mount) ==============
-# Pixel coordinates of the scale display within the camera frame.
-# Use save_debug_image=True in weight_detector.extract_weight() to verify.
-ROI_X = 0      # ← TUNE
-ROI_Y = 0      # ← TUNE
-ROI_W = 640    # ← TUNE
-ROI_H = 480    # ← TUNE
+_cfg = _load()
 
-# ============== SSOCR ==============
-SSOCR_THRESHOLD  = 20    # luminance threshold, tune on hardware
-SSOCR_MIN_DIGITS = 3     # 50.0  → 3 digits
-SSOCR_MAX_DIGITS = 4     # 500.0 → 4 digits
-SSOCR_FRAME_SKIP = 3     # run SSOCR every Nth frame (3 = ~3fps at 10fps capture)
+# ── Camera ─────────────────────────────────────────────────────────────────────
+CAMERA_INDEX = _cfg["camera"]["index"]
+FRAME_WIDTH  = _cfg["camera"]["resolution"][0]
+FRAME_HEIGHT = _cfg["camera"]["resolution"][1]
+CAPTURE_FPS  = _cfg["camera"]["fps"]
 
-# ============== WEIGHT VALIDATION ==============
-WEIGHT_MIN_KG = 50.0
-WEIGHT_MAX_KG = 500.0
+# ── ROI ────────────────────────────────────────────────────────────────────────
+ROI_X = _cfg["roi"]["x"]
+ROI_Y = _cfg["roi"]["y"]
+ROI_W = _cfg["roi"]["w"]
+ROI_H = _cfg["roi"]["h"]
 
-# ============== SESSION ==============
-IDLE_THRESHOLD_KG = 30.0   # weight above this = reel is on scale
+# ── SSOCR ──────────────────────────────────────────────────────────────────────
+SSOCR_THRESHOLD  = _cfg["ssocr"]["threshold"]
+SSOCR_MIN_DIGITS = _cfg["ssocr"]["min_digits"]
+SSOCR_MAX_DIGITS = _cfg["ssocr"]["max_digits"]
+SSOCR_FRAME_SKIP = _cfg["ssocr"]["frame_skip"]
+SSOCR_BACKGROUND = _cfg["ssocr"]["background"]
 
-# ============== SNAPSHOTS ==============
-SNAPSHOT_DIR = os.path.join(os.path.expanduser('~'), 'weighmate', 'snapshots')
+# ── Weight validation ──────────────────────────────────────────────────────────
+WEIGHT_MIN_KG = _cfg["weight"]["min_kg"]
+WEIGHT_MAX_KG = _cfg["weight"]["max_kg"]
 
-# ============== HEALTH MONITOR ==============
-BLUR_THRESHOLD             = 30.0
-BRIGHTNESS_MIN             = 20
-BRIGHTNESS_MAX             = 240
-OBSTRUCTION_TIMEOUT_SECONDS = 4.0
-HEALTH_PUBLISH_INTERVAL    = 10.0   # seconds between health publishes
+# ── Stability filter ───────────────────────────────────────────────────────────
+STABILITY_BUFFER_SIZE     = _cfg["stability"]["buffer_size"]
+STABILITY_DURATION_SEC    = _cfg["stability"]["stable_duration_sec"]
+STABILITY_VARIANCE_THRESH = _cfg["stability"]["variance_threshold"]
+STABILITY_MIN_WEIGHT_KG   = _cfg["stability"]["min_weight_kg"]
+
+# ── Session state machine ──────────────────────────────────────────────────────
+IDLE_THRESHOLD_KG   = _cfg["session"]["idle_threshold_kg"]
+DETECT_THRESHOLD_KG = _cfg["session"]["detect_threshold_kg"]
+DETECT_HOLD_SEC     = _cfg["session"]["detect_hold_sec"]
+
+# ── Health monitor ─────────────────────────────────────────────────────────────
+BLUR_THRESHOLD              = _cfg["health"]["blur_threshold"]
+BRIGHTNESS_MIN              = _cfg["health"]["brightness_min"]
+BRIGHTNESS_MAX              = _cfg["health"]["brightness_max"]
+OBSTRUCTION_TIMEOUT_SECONDS = _cfg["health"]["watchdog_timeout_sec"]
+HEALTH_PUBLISH_INTERVAL     = _cfg["health"]["publish_interval_sec"]
+
+# ── MQTT ───────────────────────────────────────────────────────────────────────
+MQTT_BROKER    = _cfg["mqtt"]["broker"]
+MQTT_PORT      = _cfg["mqtt"]["port"]
+MQTT_USERNAME  = _cfg["mqtt"]["username"]
+MQTT_PASSWORD  = _cfg["mqtt"]["password"]
+MQTT_CLIENT_ID = _cfg["mqtt"]["client_id"]
+MQTT_KEEPALIVE = _cfg["mqtt"]["keepalive"]
+MQTT_TLS       = _cfg["mqtt"]["tls"]
+SCALE_ID       = _cfg["mqtt"]["scale_id"]
+
+_prefix = f"factory/{SCALE_ID}"
+MQTT_TOPIC_LIVE_WEIGHT   = f"{_prefix}/live_weight"
+MQTT_TOPIC_SESSION_STATE = f"{_prefix}/session_state"
+MQTT_TOPIC_STABLE_WEIGHT = f"{_prefix}/stable_weight"
+MQTT_TOPIC_HEALTH        = f"{_prefix}/health"
+MQTT_TOPIC_SNAPSHOT      = f"{_prefix}/snapshot"
+MQTT_TOPIC_COMMAND       = f"{_prefix}/command"
+
+# ── Stream server ──────────────────────────────────────────────────────────────
+STREAM_PORT    = _cfg["stream"]["port"]
+STREAM_FPS     = _cfg["stream"]["fps"]
+STREAM_QUALITY = _cfg["stream"]["quality"]
+
+# ── Snapshots ──────────────────────────────────────────────────────────────────
+SNAPSHOT_DIR = os.path.expanduser(_cfg["snapshots"]["dir"])
+SNAPSHOT_CSV = os.path.expanduser(_cfg["snapshots"]["csv_path"])

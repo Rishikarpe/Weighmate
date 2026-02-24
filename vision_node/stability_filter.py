@@ -1,129 +1,101 @@
 """
 stability_filter.py
 
-Determines when a weight reading is stable enough to be confirmed.
+Determines when a weight reading is stable enough to confirm.
 
-Strategy:
-- Majority vote across N readings to handle SSOCR flicker / decimal instability.
-- Variance check across the buffer to confirm the value has settled.
-- Both conditions must hold for STABLE_DURATION_SECONDS to confirm.
+Algorithm (per master plan §7):
+    - Rolling buffer of last BUFFER_SIZE readings.
+    - Stability condition:
+        np.var(buffer) < VARIANCE_THRESHOLD   — buffer not bouncing
+        np.mean(buffer) >= MIN_WEIGHT_KG      — not empty-scale noise
+    - Both conditions must hold continuously for STABLE_DURATION_SEC.
+
+Why variance over range check?
+    - Variance is sensitive to individual outliers (single misread spikes variance).
+    - Natural scale flicker (±0.1 kg) stays well within 0.05 kg².
+    - np.var == 0.05 kg²  →  σ ≈ 0.22 kg  →  tight but realistic for a stable load.
 """
 
 from __future__ import annotations
 
 import time
-from collections import Counter, deque
+from collections import deque
 from typing import Optional
 
+import numpy as np
 
-# ─── Tunable Parameters ───────────────────────────────────────────────────────
-
-# Number of readings kept in the rolling buffer.
-BUFFER_SIZE = 10
-
-# Weight must not vary by more than this (kg) across the buffer to be stable.
-VARIANCE_THRESHOLD_KG = 0.5
-
-# Majority vote window — most common reading across last N readings wins.
-# Must be <= BUFFER_SIZE.
-VOTE_WINDOW = 5
-
-# Once a stable reading is detected, it must hold for this many seconds
-# before being confirmed.
-STABLE_DURATION_SECONDS = 5.0
+from config import (
+    STABILITY_BUFFER_SIZE,
+    STABILITY_DURATION_SEC,
+    STABILITY_VARIANCE_THRESH,
+    STABILITY_MIN_WEIGHT_KG,
+)
 
 
 class StabilityFilter:
     """
-    Tracks incoming weight readings and determines when the weight is stable.
+    Rolling variance-based stability filter.
 
     Usage:
         sf = StabilityFilter()
-        sf.add(75.5)
+        sf.add(482.5)
         ...
-        result = sf.get_stable_weight()   # returns float once stable, else None
+        weight = sf.get_stable_weight()   # float once stable, else None
     """
 
     def __init__(self) -> None:
-        self._buffer: deque[float] = deque(maxlen=BUFFER_SIZE)
-        self._stable_since: Optional[float] = None   # timestamp
-        self._last_stable_value: Optional[float] = None
+        self._buffer: deque[float] = deque(maxlen=STABILITY_BUFFER_SIZE)
+        self._stable_since: Optional[float] = None
 
-    def add(self, weight: Optional[float]) -> None:
-        """
-        Add a new weight reading.
-        Pass None if the detector failed on this frame (treated as a gap).
-        """
-        if weight is None:
-            return
+    def add(self, weight: float) -> None:
+        """Append a valid weight reading to the rolling buffer."""
         self._buffer.append(weight)
 
     def get_stable_weight(self) -> Optional[float]:
         """
-        Return the confirmed stable weight if stability criteria are met,
+        Return the smoothed confirmed weight when all criteria are met,
         otherwise return None.
 
-        A weight is considered stable when:
-        1. The buffer has enough readings.
-        2. The dominant vote reading is consistent across VOTE_WINDOW readings.
-        3. The variance of the buffer is below VARIANCE_THRESHOLD_KG.
-        4. These conditions have held for STABLE_DURATION_SECONDS.
+        Criteria:
+            1. Buffer has at least half its capacity filled.
+            2. np.var(buffer) < STABILITY_VARIANCE_THRESH
+            3. np.mean(buffer) >= STABILITY_MIN_WEIGHT_KG
+            4. All of the above held for >= STABILITY_DURATION_SEC continuously.
         """
-        if len(self._buffer) < VOTE_WINDOW:
-            self._reset_stable_timer()
+        min_samples = STABILITY_BUFFER_SIZE // 2
+        if len(self._buffer) < min_samples:
+            self._reset_timer()
             return None
 
-        voted = self._majority_vote()
-        if voted is None:
-            self._reset_stable_timer()
+        values   = np.array(self._buffer, dtype=np.float64)
+        mean     = float(np.mean(values))
+        variance = float(np.var(values))
+
+        stable = (
+            variance < STABILITY_VARIANCE_THRESH
+            and mean >= STABILITY_MIN_WEIGHT_KG
+        )
+
+        if not stable:
+            self._reset_timer()
             return None
 
-        if not self._variance_ok():
-            self._reset_stable_timer()
-            return None
-
-        # Criteria met — start or continue the stability timer
         now = time.monotonic()
-
-        if self._stable_since is None or voted != self._last_stable_value:
-            # New stable candidate — restart timer
+        if self._stable_since is None:
             self._stable_since = now
-            self._last_stable_value = voted
             return None
 
-        if (now - self._stable_since) >= STABLE_DURATION_SECONDS:
-            return voted
+        if (now - self._stable_since) >= STABILITY_DURATION_SEC:
+            return round(mean, 1)
 
         return None
 
     def reset(self) -> None:
-        """Clear all state. Call when session resets to IDLE."""
+        """Clear all state. Call when a session resets."""
         self._buffer.clear()
-        self._reset_stable_timer()
+        self._reset_timer()
 
-    # ─── Internal helpers ─────────────────────────────────────────────────────
+    # ─── Internal ─────────────────────────────────────────────────────────────
 
-    def _majority_vote(self) -> Optional[float]:
-        """
-        Return the most common reading across the last VOTE_WINDOW entries.
-        Readings are rounded to 1 decimal place before voting to group
-        near-identical values (e.g., 75.4 and 75.5 remain distinct).
-        """
-        recent = list(self._buffer)[-VOTE_WINDOW:]
-        rounded = [round(v, 1) for v in recent]
-        counts = Counter(rounded)
-        most_common_value, most_common_count = counts.most_common(1)[0]
-
-        # Require a clear majority (more than half the vote window)
-        if most_common_count > VOTE_WINDOW // 2:
-            return most_common_value
-        return None
-
-    def _variance_ok(self) -> bool:
-        """Return True if weight variation across the buffer is within threshold."""
-        values = list(self._buffer)
-        return (max(values) - min(values)) <= VARIANCE_THRESHOLD_KG
-
-    def _reset_stable_timer(self) -> None:
+    def _reset_timer(self) -> None:
         self._stable_since = None
-        self._last_stable_value = None

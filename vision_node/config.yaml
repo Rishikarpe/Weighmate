@@ -1,0 +1,62 @@
+# Vision Node — Master Configuration
+# Edit this file to tune parameters.  No code changes needed.
+# Run tools/calibrate_roi.py to set the roi section interactively.
+
+camera:
+  index: 2                      # USB camera index; use -1 to auto-scan 0-5
+  resolution: [1280, 720]       # [width, height]
+  fps: 10
+
+roi:                            # Pixel coordinates of the scale display in the frame
+  x: 0                          # ← set with tools/calibrate_roi.py
+  y: 0                          # ← set with tools/calibrate_roi.py
+  w: 640                        # ← set with tools/calibrate_roi.py
+  h: 480                        # ← set with tools/calibrate_roi.py
+
+ssocr:
+  threshold: 20                 # luminance threshold 0-255 (tune on hardware)
+  min_digits: 3                 # "50.0" has 3 significant chars minimum
+  max_digits: 4                 # "500.0" has 4 chars maximum
+  frame_skip: 3                 # run SSOCR every N frames (3 → ~3 fps at 10 fps)
+  background: "black"           # "black" or "white"
+
+weight:
+  min_kg: 50.0
+  max_kg: 500.0
+
+stability:
+  buffer_size: 30               # rolling window of N readings
+  stable_duration_sec: 5.0     # hold stability for this long before confirming
+  variance_threshold: 0.05     # max kg² variance across buffer (plan §7)
+  min_weight_kg: 200.0          # reject confirmations below this weight
+
+session:
+  idle_threshold_kg: 30.0      # weight below this = scale is empty
+  detect_threshold_kg: 200.0   # weight above this = reel detected
+  detect_hold_sec: 1.0         # sustain detection for this long before STABILIZING
+
+health:
+  blur_threshold: 80.0         # Laplacian variance below this = blurry
+  brightness_min: 20           # mean pixel intensity below this = too dark
+  brightness_max: 240          # mean pixel intensity above this = overexposed
+  watchdog_timeout_sec: 10.0   # seconds without digit read in active session
+  publish_interval_sec: 10.0   # seconds between health MQTT publishes
+
+mqtt:
+  broker: "r7e2272f.ala.eu-central-1.emqxsl.com"
+  port: 8883
+  username: "edge_autonex"
+  password: "autonex@2050"
+  client_id: "vision_node_scale1"
+  keepalive: 60
+  tls: true
+  scale_id: "scale1"
+
+stream:
+  port: 8080
+  fps: 5
+  quality: 70
+
+snapshots:
+  dir: "./snapshots"
+  csv_path: "~./weights.csv"

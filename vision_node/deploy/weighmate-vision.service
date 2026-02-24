@@ -1,0 +1,45 @@
+[Unit]
+Description=WeighMate Vision Node
+Documentation=https://github.com/AutonexAI/weightmate
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/weighmate/vision_node
+ExecStart=/usr/bin/python3 /home/pi/weighmate/vision_node/main.py
+
+# Auto-restart on any crash
+Restart=always
+RestartSec=5
+
+# Logs go to journald; view with:  journalctl -u weighmate-vision -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=weighmate-vision
+
+# Access to camera device
+SupplementaryGroups=video
+
+# Resource limits (tuned for RPi 4 with Coral)
+MemoryMax=400M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target
+
+# ─── Deploy instructions ──────────────────────────────────────────────────────
+# 1. Copy service file:
+#       sudo cp deploy/weighmate-vision.service /etc/systemd/system/
+# 2. Reload systemd:
+#       sudo systemctl daemon-reload
+# 3. Enable auto-start on boot:
+#       sudo systemctl enable weighmate-vision
+# 4. Start now:
+#       sudo systemctl start weighmate-vision
+# 5. Check status:
+#       sudo systemctl status weighmate-vision
+# 6. View live logs:
+#       journalctl -u weighmate-vision -f
