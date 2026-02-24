@@ -4,6 +4,8 @@ config.py — Vision Node configuration
 All tunable settings in one place.
 """
 
+import os
+
 # ============== MQTT BROKER (EMQX Cloud) ==============
 # Same broker as Edge — both nodes publish/subscribe here.
 MQTT_BROKER    = 'r7e2272f.ala.eu-central-1.emqxsl.com'
@@ -55,7 +57,7 @@ WEIGHT_MAX_KG = 500.0
 IDLE_THRESHOLD_KG = 30.0   # weight above this = reel is on scale
 
 # ============== SNAPSHOTS ==============
-SNAPSHOT_DIR = '/home/pi/weighmate/snapshots'
+SNAPSHOT_DIR = os.path.join(os.path.expanduser('~'), 'weighmate', 'snapshots')
 
 # ============== HEALTH MONITOR ==============
 BLUR_THRESHOLD             = 30.0
