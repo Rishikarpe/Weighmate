@@ -14,7 +14,7 @@ roi:                            # Pixel coordinates of the scale display in the 
   h: 480                        # ← set with tools/calibrate_roi.py
 
 ssocr:
-  threshold: 20                 # luminance threshold 0-255 (tune on hardware)
+  threshold: 15                 # luminance threshold 0-255 (tune on hardware)
   min_digits: 3                 # "50.0" has 3 significant chars minimum
   max_digits: 4                 # "500.0" has 4 chars maximum
   frame_skip: 3                 # run SSOCR every N frames (3 → ~3 fps at 10 fps)
@@ -36,7 +36,7 @@ session:
   detect_hold_sec: 1.0         # sustain detection for this long before STABILIZING
 
 health:
-  blur_threshold: 80.0         # Laplacian variance below this = blurry
+  blur_threshold: 15.0         # Laplacian variance below this = blurry
   brightness_min: 20           # mean pixel intensity below this = too dark
   brightness_max: 240          # mean pixel intensity above this = overexposed
   watchdog_timeout_sec: 10.0   # seconds without digit read in active session
