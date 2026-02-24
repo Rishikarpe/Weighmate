@@ -3,7 +3,7 @@
 # Run tools/calibrate_roi.py to set the roi section interactively.
 
 camera:
-  index: 2                      # USB camera index; use -1 to auto-scan 0-5
+  index: 0                      # USB camera index; use -1 to auto-scan 0-5
   resolution: [1280, 720]       # [width, height]
   fps: 10
 
