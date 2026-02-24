@@ -18,35 +18,11 @@ from typing import Optional
 import cv2
 import numpy as np
 
-# ─── ROI Configuration ────────────────────────────────────────────────────────
-# Crop region for the digit area within the camera frame.
-# Tune these values once the camera is physically mounted above the display.
-# Use the debug mode (save_debug_image=True) to visually verify the crop.
-#
-#   +──────────────── frame width ─────────────────+
-#   |                                               |
-#   |   (ROI_X, ROI_Y) ┌──── ROI_W ────┐           |
-#   |                  │               │  ROI_H     |
-#   |                  └───────────────┘           |
-#   +───────────────────────────────────────────────+
-#
-ROI_X = 0      # pixels from left edge of frame   ← TUNE
-ROI_Y = 0      # pixels from top edge of frame    ← TUNE
-ROI_W = 640    # width of crop region              ← TUNE
-ROI_H = 480    # height of crop region             ← TUNE
-
-# ─── SSOCR Configuration ──────────────────────────────────────────────────────
-# Luminance threshold for green channel isolation.
-# 20 is a good starting point for LED displays.
-# Increase if getting false reads, decrease if missing digits.
-SSOCR_THRESHOLD = 20     # ← TUNE on actual hardware
-
-SSOCR_MIN_DIGITS = 3     # 50.0  → 3 digits (5, 0, 0)
-SSOCR_MAX_DIGITS = 4     # 500.0 → 4 digits (5, 0, 0, 0)
-
-# ─── Weight Validation ────────────────────────────────────────────────────────
-WEIGHT_MIN_KG = 50.0
-WEIGHT_MAX_KG = 500.0
+from config import (
+    ROI_X, ROI_Y, ROI_W, ROI_H,
+    SSOCR_THRESHOLD, SSOCR_MIN_DIGITS, SSOCR_MAX_DIGITS,
+    WEIGHT_MIN_KG, WEIGHT_MAX_KG,
+)
 
 
 def extract_weight(

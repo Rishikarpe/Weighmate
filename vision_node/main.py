@@ -26,7 +26,7 @@ from typing import Optional
 import cv2
 
 from camera import Camera
-from config import SNAPSHOT_DIR, HEALTH_PUBLISH_INTERVAL
+from config import SNAPSHOT_DIR, HEALTH_PUBLISH_INTERVAL, SSOCR_FRAME_SKIP, ROI_X, ROI_Y, ROI_W, ROI_H
 from health_monitor import HealthMonitor
 from mqtt_client import VisionMQTTClient
 from session_manager import SessionManager, State
@@ -76,6 +76,9 @@ def main() -> None:
 
     # ── Main loop ─────────────────────────────────────────────────────────────
     last_health_publish = 0.0
+    last_debug_save     = 0.0
+    frame_counter       = 0
+    last_weight         = None   # cache last valid weight for non-SSOCR frames
 
     for frame in camera.frames():
         if not running:
@@ -85,8 +88,15 @@ def main() -> None:
             logger.warning("Dropped frame — camera read failed")
             continue
 
-        # 1. Detect weight
-        weight = extract_weight(frame)
+        frame_counter += 1
+
+        # 1. Run SSOCR only every SSOCR_FRAME_SKIP frames to keep CPU load low.
+        #    On skipped frames reuse the last known weight so state/MQTT stay live.
+        if frame_counter % SSOCR_FRAME_SKIP == 0:
+            weight = extract_weight(frame)
+            last_weight = weight
+        else:
+            weight = last_weight
         weight_detected = weight is not None
 
         # 2. Update state machine
@@ -100,11 +110,28 @@ def main() -> None:
         weight_label = f"{weight:.1f} kg" if weight is not None else "---"
         overlay = f"{weight_label}  |  {state_label}"
 
-        # 5. Push frame to stream server
-        stream.push_frame(frame, overlay=overlay)
+        # 5. Push frame to stream server — draw ROI box so operator can verify crop
+        display = frame.copy()
+        cv2.rectangle(display,
+                      (ROI_X, ROI_Y),
+                      (ROI_X + ROI_W, ROI_Y + ROI_H),
+                      (0, 255, 0), 2)
+        cv2.putText(display, "ROI", (ROI_X + 4, ROI_Y + 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        stream.push_frame(display, overlay=overlay)
 
-        # 6. Periodic health check
         now = time.monotonic()
+
+        # 6. Save ROI debug image every 30s so you can verify crop in /tmp/debug_roi.jpg
+        if now - last_debug_save >= 30.0:
+            try:
+                roi = frame[ROI_Y:ROI_Y + ROI_H, ROI_X:ROI_X + ROI_W]
+                cv2.imwrite("/tmp/debug_roi.jpg", roi)
+            except Exception:
+                pass
+            last_debug_save = now
+
+        # 7. Periodic health check
         if now - last_health_publish >= HEALTH_PUBLISH_INTERVAL:
             session_active = session.state in (State.STABILIZING, State.CONFIRMED)
             status = health.check(frame, session_active, weight_detected)

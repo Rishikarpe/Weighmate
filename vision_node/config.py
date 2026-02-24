@@ -27,7 +27,7 @@ MQTT_TOPIC_SNAPSHOT      = f'factory/{SCALE_ID}/snapshot'
 MQTT_TOPIC_COMMAND       = f'factory/{SCALE_ID}/command'
 
 # ============== CAMERA ==============
-CAMERA_INDEX = 0       # USB camera device index (0 = first USB cam, 1 = second, etc.)
+CAMERA_INDEX = 2       # Logitech C270 HD Webcam at /dev/video2
 FRAME_WIDTH  = 1280
 FRAME_HEIGHT = 720
 CAPTURE_FPS  = 10
@@ -49,6 +49,7 @@ ROI_H = 480    # ← TUNE
 SSOCR_THRESHOLD  = 20    # luminance threshold, tune on hardware
 SSOCR_MIN_DIGITS = 3     # 50.0  → 3 digits
 SSOCR_MAX_DIGITS = 4     # 500.0 → 4 digits
+SSOCR_FRAME_SKIP = 3     # run SSOCR every Nth frame (3 = ~3fps at 10fps capture)
 
 # ============== WEIGHT VALIDATION ==============
 WEIGHT_MIN_KG = 50.0
