@@ -90,23 +90,51 @@ class Camera:
     # ─── Internal ─────────────────────────────────────────────────────────────
 
     def _try_open(self) -> None:
-        # Use the V4L2 backend explicitly on Linux for reliable UVC/USB cameras.
-        # Falls back gracefully on other platforms (Windows uses DSHOW, etc.).
-        backend = cv2.CAP_V4L2 if hasattr(cv2, 'CAP_V4L2') else cv2.CAP_ANY
-        cap = cv2.VideoCapture(CAMERA_INDEX, backend)
+        cap = cv2.VideoCapture(CAMERA_INDEX)
         if not cap.isOpened():
             raise RuntimeError(f"No USB camera found at index {CAMERA_INDEX}")
+
         cap.set(cv2.CAP_PROP_FRAME_WIDTH,  FRAME_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
         cap.set(cv2.CAP_PROP_FPS,          CAPTURE_FPS)
-        # NOTE: CAP_PROP_BUFFERSIZE is intentionally NOT set here —
-        # it breaks reads on many V4L2/UVC drivers.
-        self._cap = cap
+
         # Warm-up: give the sensor time to stabilise and drain initial frames.
         logger.info("Camera warm-up (%ds)...", WARMUP_SECS)
         time.sleep(WARMUP_SECS)
         for _ in range(WARMUP_READS):
-            self._cap.grab()
+            cap.grab()
+
+        # Test read — verify the camera actually delivers frames.
+        # If it fails here, raise so open() retries with a different config.
+        ok, test_frame = cap.read()
+        if not ok or test_frame is None:
+            cap.release()
+            # Many cheap USB cameras don't support 1280x720 in raw (YUYV) mode.
+            # Fall back to 640x480 which is universally supported.
+            logger.warning(
+                "Camera at index %d could not read %dx%d. "
+                "Retrying at 640x480...",
+                CAMERA_INDEX, FRAME_WIDTH, FRAME_HEIGHT,
+            )
+            cap = cv2.VideoCapture(CAMERA_INDEX)
+            if not cap.isOpened():
+                raise RuntimeError(f"Camera index {CAMERA_INDEX} failed to reopen")
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            cap.set(cv2.CAP_PROP_FPS,          CAPTURE_FPS)
+            time.sleep(WARMUP_SECS)
+            for _ in range(WARMUP_READS):
+                cap.grab()
+            ok, test_frame = cap.read()
+            if not ok or test_frame is None:
+                cap.release()
+                raise RuntimeError(
+                    f"Camera index {CAMERA_INDEX} opened but cannot deliver frames. "
+                    "Check 'v4l2-ctl --list-devices' and set CAMERA_INDEX correctly."
+                )
+            logger.info("Fallback resolution 640x480 is working.")
+
+        self._cap = cap
 
     def _read_frame(self) -> Optional[np.ndarray]:
         if self._cap is None:
