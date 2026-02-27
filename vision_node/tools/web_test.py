@@ -119,14 +119,29 @@ def _probe_backends() -> dict[str, dict]:
         }
 
     # ── EasyOCR ───────────────────────────────────────────────────────────────
+    # Probe in a subprocess: EasyOCR imports PyTorch which may trigger SIGILL
+    # (Illegal instruction) on RPi if the wheel was built for a newer CPU.
+    # A subprocess crash only kills the child, not this server process.
     try:
-        import easyocr  # noqa: F401
-        results["easyocr"] = {"available": True, "note": "easyocr installed"}
-    except ImportError:
-        results["easyocr"] = {
-            "available": False,
-            "note": "pip install easyocr",
-        }
+        probe = subprocess.run(
+            [sys.executable, "-c", "import easyocr"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if probe.returncode == 0:
+            results["easyocr"] = {"available": True, "note": "easyocr installed"}
+        else:
+            stderr = (probe.stderr or "").strip()
+            if "No module named" in stderr or "ModuleNotFoundError" in stderr:
+                note = "pip install easyocr"
+            elif probe.returncode == -4 or "Illegal instruction" in stderr:
+                note = "PyTorch SIGILL — CPU lacks required instructions (AVX2/NEON); not usable on this device"
+            else:
+                note = f"import failed (exit {probe.returncode}): {stderr[:120]}"
+            results["easyocr"] = {"available": False, "note": note}
+    except subprocess.TimeoutExpired:
+        results["easyocr"] = {"available": False, "note": "import timed out (>60 s)"}
+    except Exception as exc:
+        results["easyocr"] = {"available": False, "note": str(exc)[:120]}
 
     # ── SSOCR ─────────────────────────────────────────────────────────────────
     try:
@@ -220,6 +235,8 @@ def _run_tesseract(frame: np.ndarray, rx: int, ry: int, rw: int, rh: int,
 def _run_easyocr(frame: np.ndarray, rx: int, ry: int, rw: int, rh: int,
                  debug_path: str | None) -> tuple[float | None, str]:
     global _EASYOCR_READER
+    if not _BACKENDS.get("easyocr", {}).get("available"):
+        raise RuntimeError(_BACKENDS.get("easyocr", {}).get("note", "easyocr unavailable"))
     import easyocr
 
     if _EASYOCR_READER is None:
