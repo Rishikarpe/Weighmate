@@ -35,12 +35,11 @@ ROI_Y = _cfg["roi"]["y"]
 ROI_W = _cfg["roi"]["w"]
 ROI_H = _cfg["roi"]["h"]
 
-# ── SSOCR ──────────────────────────────────────────────────────────────────────
-SSOCR_THRESHOLD  = _cfg["ssocr"]["threshold"]
-SSOCR_MIN_DIGITS = _cfg["ssocr"]["min_digits"]
-SSOCR_MAX_DIGITS = _cfg["ssocr"]["max_digits"]
-SSOCR_FRAME_SKIP = _cfg["ssocr"]["frame_skip"]
-SSOCR_BACKGROUND = _cfg["ssocr"]["background"]
+# ── TFLite ─────────────────────────────────────────────────────────────────────
+TFLITE_MODEL_PATH   = os.path.join(os.path.dirname(__file__), _cfg["tflite"]["model_path"])
+TFLITE_INPUT_WIDTH  = _cfg["tflite"]["input_width"]
+TFLITE_INPUT_HEIGHT = _cfg["tflite"]["input_height"]
+TFLITE_FRAME_SKIP   = _cfg["tflite"]["frame_skip"]
 
 # ── Weight validation ──────────────────────────────────────────────────────────
 WEIGHT_MIN_KG = _cfg["weight"]["min_kg"]

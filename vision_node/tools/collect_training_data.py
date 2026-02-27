@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import (
     CAMERA_INDEX, FRAME_WIDTH, FRAME_HEIGHT, CAPTURE_FPS,
     ROI_X, ROI_Y, ROI_W, ROI_H,
-    SSOCR_FRAME_SKIP,
+    TFLITE_FRAME_SKIP,
 )
 from weight_detector import extract_weight
 
@@ -75,7 +75,7 @@ def main() -> None:
             continue
 
         frame_idx += 1
-        if frame_idx % SSOCR_FRAME_SKIP == 0:
+        if frame_idx % TFLITE_FRAME_SKIP == 0:
             last_weight = extract_weight(frame)
 
         roi    = frame[ROI_Y:ROI_Y + ROI_H, ROI_X:ROI_X + ROI_W]

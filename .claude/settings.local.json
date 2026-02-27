@@ -2,6 +2,9 @@
   "permissions": {
     "additionalDirectories": [
       "d:\\Rishabh\\Internship\\AutonexAI\\Weightmate+fork"
+    ],
+    "allow": [
+      "WebFetch(domain:github.com)"
     ]
   }
 }

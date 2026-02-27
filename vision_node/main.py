@@ -6,7 +6,7 @@ Architecture:
            → mqtt_client + stream_server + health_monitor + snapshot_logger
 
 Main loop:   ~10 fps  (CAPTURE_FPS)
-SSOCR:       every SSOCR_FRAME_SKIP frames  (~3 fps)
+TFLite:      every TFLITE_FRAME_SKIP frames  (~3 fps)
 Health pub:  every HEALTH_PUBLISH_INTERVAL seconds
 
 Run:
@@ -35,7 +35,7 @@ from camera import Camera
 from config import (
     SNAPSHOT_DIR,
     HEALTH_PUBLISH_INTERVAL,
-    SSOCR_FRAME_SKIP,
+    TFLITE_FRAME_SKIP,
     ROI_X, ROI_Y, ROI_W, ROI_H,
 )
 from health_monitor import HealthMonitor
@@ -95,7 +95,7 @@ def main() -> None:
     frame_counter       = 0
     last_health_publish = 0.0
     last_debug_save     = 0.0
-    cached_weight: Optional[float] = None   # last valid SSOCR result
+    cached_weight: Optional[float] = None   # last valid TFLite result
 
     for frame in camera.frames():
         if not running:
@@ -107,9 +107,9 @@ def main() -> None:
         frame_counter += 1
         last_frame[0] = frame
 
-        # 1. SSOCR on every Nth frame; reuse cache on skipped frames so the
+        # 1. TFLite on every Nth frame; reuse cache on skipped frames so the
         #    state machine and MQTT feed stay live at full loop rate.
-        if frame_counter % SSOCR_FRAME_SKIP == 0:
+        if frame_counter % TFLITE_FRAME_SKIP == 0:
             cached_weight = extract_weight(frame)
         weight          = cached_weight
         weight_detected = weight is not None

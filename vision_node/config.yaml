@@ -13,12 +13,11 @@ roi:                            # Pixel coordinates of the scale display in the 
   w: 640                        # ← set with tools/calibrate_roi.py
   h: 480                        # ← set with tools/calibrate_roi.py
 
-ssocr:
-  threshold: 20                 # luminance threshold 0-255 (tune on hardware)
-  min_digits: 3                 # "50.0" has 3 significant chars minimum
-  max_digits: 4                 # "500.0" has 4 chars maximum
-  frame_skip: 3                 # run SSOCR every N frames (3 → ~3 fps at 10 fps)
-  background: "black"           # "black" or "white"
+tflite:
+  model_path: "model_float16.tflite"   # renjithsasidharan/seven-segment-ocr
+  input_width: 200                     # model input width (pixels)
+  input_height: 31                     # model input height (pixels)
+  frame_skip: 3                        # run inference every N frames (~3 fps at 10 fps)
 
 weight:
   min_kg: 50.0

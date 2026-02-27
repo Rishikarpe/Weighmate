@@ -4,9 +4,14 @@ flask>=3.0
 pyyaml>=6.0
 numpy>=1.24
 
+# TFLite inference (choose one):
+#   Raspberry Pi / Linux (lightweight, no GPU):
+#     pip install tflite-runtime
+#   Dev machine (full TensorFlow):
+#     pip install tensorflow
+#
+# Model file — download model_float16.tflite and place in vision_node/:
+#   https://github.com/renjithsasidharan/seven-segment-ocr
+#
 # RPi only — install via apt, NOT pip:
 #   sudo apt install python3-picamera2
-#
-# SSOCR — install via apt or build from repo:
-#   sudo apt install ssocr
-#   # or: cd ssocr/ && make && sudo make install
